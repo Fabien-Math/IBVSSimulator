@@ -5,6 +5,7 @@ from OpenGL.GLUT import *
 import numpy as np
 
 
+
 ### WITH TEXTURE
 
 def load_texture(texture_filename):
@@ -112,54 +113,54 @@ def draw_obj(vertices, normals, faces):
 
 
 def create_vertex_data(vertices, texcoords, normals, faces):
-	data = []
-	for face in faces:
-		for v_idx, vt_idx, vn_idx in face:
-			# Position
-			data.extend(vertices[v_idx])
-			# Texture coords (fallback if missing)
-			if texcoords and vt_idx is not None:
-				data.extend(texcoords[vt_idx])
-			else:
-				data.extend([0.0, 0.0])
-			# Normals (fallback if missing)
-			if normals and vn_idx is not None:
-				data.extend(normals[vn_idx])
-			else:
-				data.extend([0.0, 0.0, 0.0])
-	return np.array(data, dtype=np.float32)
+    data = []
+    for face in faces:
+        for v_idx, vt_idx, vn_idx in face:
+            # Position
+            data.extend(vertices[v_idx])
+            # Texture coords (fallback if missing)
+            if texcoords and vt_idx is not None:
+                data.extend(texcoords[vt_idx])
+            else:
+                data.extend([0.0, 0.0])
+            # Normals (fallback if missing)
+            if normals and vn_idx is not None:
+                data.extend(normals[vn_idx])
+            else:
+                data.extend([0.0, 0.0, 0.0])
+    return np.array(data, dtype=np.float32)
 
 def create_vbo(data):
-	vbo_id = glGenBuffers(1)
-	glBindBuffer(GL_ARRAY_BUFFER, vbo_id)
-	glBufferData(GL_ARRAY_BUFFER, data.nbytes, data, GL_STATIC_DRAW)
-	glBindBuffer(GL_ARRAY_BUFFER, 0)
-	return vbo_id
+    vbo_id = glGenBuffers(1)
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_id)
+    glBufferData(GL_ARRAY_BUFFER, data.nbytes, data, GL_STATIC_DRAW)
+    glBindBuffer(GL_ARRAY_BUFFER, 0)
+    return vbo_id
 
 
 def draw_vbo_textured(vbo_id, vertex_count, texture_id):
-	stride = 8 * 4  # 8 floats per vertex: 3 pos + 2 tex + 3 normal, 4 bytes each
+    stride = 8 * 4  # 8 floats per vertex: 3 pos + 2 tex + 3 normal, 4 bytes each
 
-	glEnable(GL_TEXTURE_2D)
-	glBindTexture(GL_TEXTURE_2D, texture_id)
+    glEnable(GL_TEXTURE_2D)
+    glBindTexture(GL_TEXTURE_2D, texture_id)
 
-	glBindBuffer(GL_ARRAY_BUFFER, vbo_id)
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_id)
 
-	glEnableClientState(GL_VERTEX_ARRAY)
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-	glEnableClientState(GL_NORMAL_ARRAY)
+    glEnableClientState(GL_VERTEX_ARRAY)
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+    glEnableClientState(GL_NORMAL_ARRAY)
 
-	# Set pointers to position, texture, normal in VBO
-	glVertexPointer(3, GL_FLOAT, stride, ctypes.c_void_p(0))
-	glTexCoordPointer(2, GL_FLOAT, stride, ctypes.c_void_p(12))  # 3 floats * 4 bytes = 12
-	glNormalPointer(GL_FLOAT, stride, ctypes.c_void_p(20))       # (3+2) floats * 4 bytes = 20
+    # Set pointers to position, texture, normal in VBO
+    glVertexPointer(3, GL_FLOAT, stride, ctypes.c_void_p(0))
+    glTexCoordPointer(2, GL_FLOAT, stride, ctypes.c_void_p(12))  # 3 floats * 4 bytes = 12
+    glNormalPointer(GL_FLOAT, stride, ctypes.c_void_p(20))       # (3+2) floats * 4 bytes = 20
 
-	glDrawArrays(GL_TRIANGLES, 0, vertex_count)
+    glDrawArrays(GL_TRIANGLES, 0, vertex_count)
 
-	glDisableClientState(GL_VERTEX_ARRAY)
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY)
-	glDisableClientState(GL_NORMAL_ARRAY)
+    glDisableClientState(GL_VERTEX_ARRAY)
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+    glDisableClientState(GL_NORMAL_ARRAY)
 
-	glBindBuffer(GL_ARRAY_BUFFER, 0)
-	glBindTexture(GL_TEXTURE_2D, 0)
-	glDisable(GL_TEXTURE_2D)
+    glBindBuffer(GL_ARRAY_BUFFER, 0)
+    glBindTexture(GL_TEXTURE_2D, 0)
+    glDisable(GL_TEXTURE_2D)

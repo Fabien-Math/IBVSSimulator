@@ -2,9 +2,9 @@ from OpenGL.GL import *
 import numpy as np
 
 class OffscreenRenderer:
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
+    def __init__(self, camera):
+        self.width = camera.img_width
+        self.height = camera.img_height
 
         # Create FBO
         self.fbo = glGenFramebuffers(1)

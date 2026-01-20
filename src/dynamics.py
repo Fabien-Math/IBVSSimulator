@@ -1,5 +1,5 @@
 import numpy as np
-
+from world import World
 def S(v):
 	return np.array([[ 0.00, -v[2],  v[1]],
 				     [ v[2],  0.00, -v[0]],
@@ -7,7 +7,8 @@ def S(v):
 
 
 class Dynamics:
-	def __init__(self, robot_params):
+	def __init__(self, robot_params, world):
+		self.world = world
 		# Position and orientation
 		self.eta = np.zeros(6)
 		self.eta_p = np.zeros(6)
@@ -92,7 +93,7 @@ class Dynamics:
 		self.D = self.Dl + np.diag(np.diag(self.Dq) * np.abs(self.nu_rel))
 
 	def compute_G(self):
-		gravity = np.array([0, 0, 9.81 * self.m])
+		gravity = self.m * self.world.gravity
 		buoyancy = np.array([0, 0, -9.81 * self.m - 2])
 		hydrostatic_forces = np.zeros( 6 )
 		hydrostatic_forces[:3] = self.J[:3, :3].T @ (gravity + buoyancy)

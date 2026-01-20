@@ -89,9 +89,12 @@ def load_config(filename):
 	}
 
 
+	# World parameters
+	world_cfg = cfg.get('world', {})
+
 	# Environment parameters
-	env_cfg = cfg.get('environment', {})
-	current_cfg = env_cfg.get('current', {})
+	ocean_cfg = world_cfg.get('ocean', {})
+	current_cfg = ocean_cfg.get('current', {})
 	current_types = re.sub(r"\s+", "", current_cfg.get('types', 'zero'))
 	current_params = {'types': current_types}
 
@@ -123,23 +126,52 @@ def load_config(filename):
 		else:
 			raise ValueError(f"Unsupported current type: {current_type}")
 
-	properties_cfg = env_cfg.get('properties', {})
-	environment_params = {
-		'gravity': np.array(properties_cfg.get('gravity', [0.0, 0.0, -9.81])),
+	properties_cfg = ocean_cfg.get('properties', {})
+	ocean_params = {
 		'water_density': properties_cfg.get('water_density', 1025.0),
 		'water_viscosity': properties_cfg.get('water_viscosity', 1.0e-3),
 		'current': current_params,
 	}
 
 
-	world_cfg = cfg.get('world', {})
 	markers_cfg = world_cfg.get('markers', {})
-	world_params = {
+	cables_cfg = world_cfg.get('cables', {})
+	marker_params = {
 		'initial_position': np.array(markers_cfg.get('initial_position'), dtype=float),
 		'translation': np.array(markers_cfg.get('translation', 0.01), dtype=float),
 		'rotation': np.array(markers_cfg.get('rotation', 10.0), dtype=float),
 		'colors': np.array(markers_cfg.get('colors'), dtype=float),
 	}
 
+	cables_params = []
 
-	return simulation_params, robot_params, environment_params, world_params
+	cable_nb = int(cables_cfg.get('cable_nb', 0))
+	for i in range(cable_nb):
+		cable_cfg = cables_cfg.get(f'cable{i}', {})
+		cable_params = {
+			'initial_position': np.array(cable_cfg.get('initial_position', [0.0, 0.0, 0.0]), dtype=float),
+			'end_position': np.array(cable_cfg.get('end_position', [0.0, 0.0, 0.0]), dtype=float),
+			'length': float(cable_cfg.get('length', 0.0)),
+			'radius': float(cable_cfg.get('radius', 0.0)),
+			'n_subdiv': int(cable_cfg.get('n_subdiv', 0)),
+			'linear_mass': float(cable_cfg.get('linear_mass', 0.0)),
+			'bending_coef': float(cable_cfg.get('bending_coef', 0.0)),
+			'jakobsen_params': {
+				'n_iter': int(cable_cfg.get('jakobsen_params', {}).get('n_iter', 0)),
+				'penalty_coef': float(cable_cfg.get('jakobsen_params', {}).get('penalty_coef', 0.0)),
+			},
+			'anchored': np.array(cable_cfg.get('anchored', [0, 0]), dtype=int),
+			'color': np.array(cable_cfg.get('color', [1.0, 1.0, 1.0]), dtype=float),
+		}
+		cables_params.append(cable_params)
+
+
+	world_params = {
+		'gravity': np.array(properties_cfg.get('gravity', [0.0, 0.0, 9.81])),
+		'ocean': ocean_params,
+		'markers': marker_params,
+		'cables':cables_params
+	}
+
+
+	return simulation_params, robot_params, world_params

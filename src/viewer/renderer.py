@@ -9,6 +9,7 @@ from viewer.hud import HUD
 from viewer.trace import Trace
 from viewer.obj_manager import load_obj_with_tex, create_vertex_data, create_vbo, draw_vbo_textured
 from viewer.offscreen_renderer import OffscreenRenderer
+from viewer.cable_mesh import GPUCable
 
 
 import time
@@ -51,6 +52,8 @@ class Renderer:
 
 		# Robot related variable (Not initialized yet so the viewer can be run multiple times with different robot)
 		self.robot = None
+		self.world = None
+		self.gpu_cables = None
 		self.markers = None
 		self.marker_colors = None
 		self.wanted_markers = None
@@ -144,6 +147,7 @@ class Renderer:
 
 		# Draw the scene (markers, etc.)
 		self.draw_markers(bool_draw_axis=False)
+		self.draw_cables()
 
 		# Flush and read pixels
 		glFlush()
@@ -180,6 +184,7 @@ class Renderer:
 
 		if self.gui.draw_wps_button.active:
 			self.draw_markers()
+		self.draw_cables()
 
 		if self.gui.draw_robot_force_button.active:
 			self.draw_robot_force(draw_on_top=True)
@@ -201,6 +206,7 @@ class Renderer:
 		self.gui.draw(self.robot, fps, self.dt, self.time)
 
 		self.last_frame_time = curr_frame_time
+
 		glutSwapBuffers()
 
 	def restore_main_viewport(self):
@@ -235,7 +241,7 @@ class Renderer:
 			if self.new_img:
 				self.robot.update_img(img)
 				self.new_img = False
-			self.robot.update(self.dt, self.env)
+			self.robot.update(self.dt)
 			self.step_request = False
 
 		if self.graphical:
@@ -310,11 +316,13 @@ class Renderer:
 		self.robot_trace = Trace()
 
 	def init_world(self, world):
-		# Map the robot from the simulation
+		self.world = world
 		self.markers = world.markers
+		self.gpu_cables = [GPUCable(cable) for cable in world.cables]
 		self.marker_colors = world.marker_colors
 
-	def run(self, robot, world, ocean):
+
+	def run(self, robot, world):
 		glutInit()
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH | GLUT_MULTISAMPLE)
 		glutInitWindowSize(self.window_width, self.window_height)
@@ -335,7 +343,7 @@ class Renderer:
 
 		# Must be called after OpenGL and GLUT initialized
 		self.init_world(world)
-		self.env = ocean
+		self.ocean = world.ocean
 		self.init_robot(robot)
 
 		# GUI
@@ -375,9 +383,20 @@ class Renderer:
 		"""Draws a stylized 3D target marker with sphere and axis arrows."""
 		# Draw central sphere
 		glDisable(GL_LIGHTING)
-		glColor3f(*color)  # yellowish
+		glColor3f(*color)  # red
 		glutSolidSphere(size, 20, 20)
 		glEnable(GL_LIGHTING)
+
+
+	def draw_marker_positions(self):
+		pass # TO BE DONE
+
+	def draw_cables(self):
+		for gpu_cable in self.gpu_cables:
+			gpu_cable.update_positions()  # update VBO if cable moved
+			gpu_cable.draw()
+
+
 
 	def draw_axis(self, length=0.5, line_width=1.5, draw_on_top=False):
 		glDisable(GL_LIGHTING)
@@ -604,7 +623,7 @@ class Renderer:
 		elif key in (b'd', b'D'):
 			self.bool_draw_wanted_markers = not self.bool_draw_wanted_markers
 		elif key in (b'f', b'F'):
-			self.follow_robot = not self.follow_robot
+			self.bool_follow_robot = not self.bool_follow_robot
 		elif key in (b'g', b'G'):
 			self.gui.draw_robot_force_button.active = not self.gui.draw_robot_force_button.active
 		elif key in (b'h', b'H'):
@@ -692,7 +711,7 @@ class Renderer:
 
 	def zoom(self, wheel, direction, x, y):
 		self.camera_radius *= 0.9 if direction > 0 else 1.1
-		self.camera_radius = np.clip(self.camera_radius, 1.0, 1000.0)
+		self.camera_radius = np.clip(self.camera_radius, 0.2, 1000.0)
 
 	def motion(self, x, y):
 		dx = x - self.mouse_prev[0]

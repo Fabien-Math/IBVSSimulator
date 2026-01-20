@@ -3,7 +3,6 @@ import numpy as np
 class Ocean:
     def __init__(self, environment_params):
         # Physical environment properties (required)
-        self.gravity = np.array(environment_params["gravity"])
         self.water_density = environment_params["water_density"]
         self.water_viscosity = environment_params["water_viscosity"]
 
@@ -31,11 +30,11 @@ class Ocean:
                 self.fluid_vel = np.array(self.current_params["constant"]["vector"])
 
 
-    def update(self, pos, dt, step=None):
+    def update(self, pos, dt, time=None):
         """
         Compute the 6D fluid velocity vector at a given position.
         pos: [x, y, z] as numpy array
-        step: optional time step for time_series currents
+        time: optional time time for time_series currents
         """
         self.time += dt
 
@@ -86,13 +85,13 @@ class Ocean:
                         v1 = np.array(self.depth_profile[i + 1]["vector"])
                         ratio = (z - d0) / (d1 - d0)
                         self.fluid_vel = v0 + ratio * (v1 - v0)
-            
+
             elif current_type == "jet":
                 jet_force =  np.array(self.current_params["jet"]["vector"])
                 jet_period   = self.current_params["jet"]["period"]
                 jet_duty     = self.current_params["jet"]["duty"]
 
-                phase = (step % jet_period) / jet_period
+                phase = (time % jet_period) / jet_period
                 jet_vector = jet_force * (phase < jet_duty)
 
                 self.fluid_vel += jet_vector

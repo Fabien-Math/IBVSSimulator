@@ -11,7 +11,9 @@ from ibvs_controller import IBVSController
 
 
 class Robot:
-	def __init__(self, robot_params):
+	def __init__(self, robot_params, world):
+		self.world = world
+
 		# Robot time
 		self.time = 0
 
@@ -24,24 +26,24 @@ class Robot:
 		self.fluid_vel = np.zeros(6)
 
 		# Robot components
-		self.dynamics = Dynamics(robot_params)
+		self.dynamics = Dynamics(robot_params, world)
 		self.thrusters = ThrusterSystem(robot_params["thruster"])
 
 		# IBVS controller
 		self.mission_finished = False
 		self.camera = Camera(robot_params["camera"])
-		self.controller = IBVSController(robot_params["mission"], self.camera)
+		self.controller = IBVSController(robot_params["mission"], self.camera, world)
 
 		# Robot logger
 		self.logger = LoggingSystem(self)
 		self.first_img = True
 
-	def update(self, dt, env):
+	def update(self, dt):
 		self.time += dt
 
 		# Update environment
-		env.update(self.eta, dt, self.time)
-		self.fluid_vel = env.fluid_vel
+		self.world.update(self.eta, dt, self.time)
+		self.fluid_vel = self.world.ocean.fluid_vel
 
 		# Update robot components
 		self.dynamics.update_transformation_matrices()

@@ -2,13 +2,13 @@ simulation:
   name: "test"
   timestep: 0.05
   end_time: 50.0
-  graphical: false
+  graphical: true
   fancy_robot: false
   save_csv: false
   save_output: results/
-  save_graphs: true
+  save_graphs: false
   show_graphs: false
-  save_images: false
+  save_images: true
 
 # Robot definition
 robot:
@@ -139,51 +139,53 @@ robot:
       wn: 20
       zeta: 0.7
 
-# Environment parameters
-environment:
-  # Open water parameters
-  properties:
-    gravity: [0.0, 0.0, -9.81] # Gravity vector in m/s^2
-    water_density: 1025.0 # Density of water in kg/m^3
-    water_viscosity: 1.0e-3 # Viscosity of water in Pa.s
-
-  current:
-    types: zero # Options: zero, normal, jet, constant, time_series, depth_profile
-
-    # Type: normal (randomized per axis)
-    normal:
-      speed: [0.3, -0.3, 0.0, 0.0, 0.0, 0.0]
-      std: [0.10, 0.05, 0.00, 0.0, 0.0, 0.0]
-
-    # Type: jet (fully fixed 6D vector)
-    jet:
-      vector: [0.3, 0.0, 0.0, 0.0, 0.0, 0.0]
-      period: 10
-      duty: 0.2
-
-    # Type: constant (3D only, angular assumed zero)
-    constant:
-      vector: [0.0, 0.0, 0.0]
-
-    # Type: time_series (indexed array of 6D vectors)
-    time_series:
-      - time: 0
-        vector: [0.1, 0.0, 0.0, 0.0, 0.0, 0.0]
-      - time: 20
-        vector: [0.15, 0.05, 0.0, 0.0, 0.0, 0.0]
-      - time: 100
-        vector: [0.2, 0.0, 0.0, 0.0, 0.0, 0.0]
-
-    # Type: depth_profile (velocity as a function of depth)
-    depth_profile:
-      - depth: 0
-        vector: [0.8, 0.0, 0.0, 0.0, 0.0, 0.0]
-      - depth: 10
-        vector: [0.4, 0.0, 0.0, 0.0, 0.0, 0.0]
-      - depth: 20
-        vector: [0.1, 0.0, 0.0, 0.0, 0.0, 0.0]
-
 world:
+  # Environment parameters
+  gravity: [0.0, 0.0, -9.81] # Gravity vector in m/s^2
+
+  # Ocean parameters
+  ocean:
+    # Open water parameters
+    properties:
+      water_density: 1025.0 # Density of water in kg/m^3
+      water_viscosity: 1.0e-3 # Viscosity of water in Pa.s
+
+    current:
+      types: normal # Options: zero, normal, jet, constant, time_series, depth_profile
+
+      # Type: normal (randomized per axis)
+      normal:
+        speed: [0.3, -0.3, 0.0, 0.0, 0.0, 0.0]
+        std: [0.10, 0.05, 0.00, 0.0, 0.0, 0.0]
+
+      # Type: jet (fully fixed 6D vector)
+      jet:
+        vector: [0.3, 0.0, 0.0, 0.0, 0.0, 0.0]
+        period: 10
+        duty: 0.2
+
+      # Type: constant (3D only, angular assumed zero)
+      constant:
+        vector: [0.0, 0.0, 0.0]
+
+      # Type: time_series (indexed array of 6D vectors)
+      time_series:
+        - time: 0
+          vector: [0.1, 0.0, 0.0, 0.0, 0.0, 0.0]
+        - time: 20
+          vector: [0.15, 0.05, 0.0, 0.0, 0.0, 0.0]
+        - time: 100
+          vector: [0.2, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+      # Type: depth_profile (velocity as a function of depth)
+      depth_profile:
+        - depth: 0
+          vector: [0.8, 0.0, 0.0, 0.0, 0.0, 0.0]
+        - depth: 5
+          vector: [0.4, 0.0, 0.0, 0.0, 0.0, 0.0]
+        - depth: 10
+          vector: [0.1, 0.0, 0.0, 0.0, 0.0, 0.0]
+
   markers:
     initial_position:
       - [0.0, 0.5, -0.5]
@@ -193,3 +195,45 @@ world:
     colors:
       - [1.0, 0.0, 0.0]
       - [1.0, 0.0, 0.0]
+
+  cables:
+    cable_nb: 3
+    cable0:
+      initial_position: [5.0, 0.0, 10.0]
+      end_position: [5.0, 0.0, 1.0]
+      length: 9
+      radius: 0.01
+      n_subdiv: 20
+      linear_mass: 0.3
+      bending_coef: 5
+      jakobsen_params:
+        n_iter: 20
+        penalty_coef: 1.8
+      anchored: [1, 0]
+      color: [0.97, 0.97, 0.05]
+    cable1:
+      initial_position: [3.0, -2.0, 5.0]
+      end_position: [1.0, 0.0, 1.0]
+      length: 9
+      radius: 0.01
+      n_subdiv: 20
+      linear_mass: 0.6
+      bending_coef: 5
+      jakobsen_params:
+        n_iter: 20
+        penalty_coef: 1.8
+      anchored: [1, 0]
+      color: [0.97, 0.97, 0.05]
+    cable2:
+      initial_position: [0.0, 3.0, 5.0]
+      end_position: [1.0, 6.0, 1.0]
+      length: 9
+      radius: 0.01
+      n_subdiv: 20
+      linear_mass: 0.6
+      bending_coef: 5
+      jakobsen_params:
+        n_iter: 20
+        penalty_coef: 1.8
+      anchored: [1, 1]
+      color: [0.97, 0.97, 0.05]

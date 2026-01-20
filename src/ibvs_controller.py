@@ -6,7 +6,7 @@ from scipy.spatial.transform import Rotation as R
 
 
 class IBVSController:
-	def __init__(self, mission_params, camera):
+	def __init__(self, mission_params, camera, world):
 
 		self.camera = camera
 		self.img = None
@@ -14,7 +14,9 @@ class IBVSController:
 		self.xs = None
 		self.ys = None
 
-		self.world = None
+		self.world = world
+		self.markers = world.markers
+		self.markers_color = world.marker_colors
 
 		### IBVS parameters
 		self.lambda_gain = mission_params['lambda']
@@ -36,10 +38,6 @@ class IBVSController:
 		self.cmd = np.zeros(6)
 		self.error_norm = 0
 
-	def init_world(self, world):
-		self.world = world
-		self.markers = world.markers
-		self.markers_color = world.marker_colors
 
 	def update_img(self, img):
 		self.img = img.copy()

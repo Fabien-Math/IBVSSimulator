@@ -15,9 +15,9 @@ def main():
 
 	scenario_params = load_config(filename=filename)
 
-	simulation_params, robot_params, environment_params, world_params = scenario_params
+	simulation_params, robot_params, world_params = scenario_params
 
-	sim_manager = SimulationManager(simulation_params, robot_params, environment_params, world_params)
+	sim_manager = SimulationManager(simulation_params, robot_params, world_params)
 
 	# handle CTRL + C
 	def handle_sigint(signum, frame):

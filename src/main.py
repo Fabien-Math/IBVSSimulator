@@ -8,8 +8,9 @@ from numpy import set_printoptions, inf
 set_printoptions(threshold=inf, linewidth=inf, formatter={'float': lambda x: "{0:.3e}".format(x)})
 
 def main():
-	# filename = "config/bluerov_config.yaml"
-	filename = "config/bluerov_config_line.yaml"
+	filename = "config/bluerov_config.yaml"
+	# filename = "config/bluerov_config_line.yaml"
+	# filename = "config/bluerov_config_cable_tests.yaml"
 
 	launch_time = time.strftime("%Y-%m-%d_%H-%M-%S")
 

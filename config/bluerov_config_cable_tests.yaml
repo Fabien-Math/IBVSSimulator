@@ -1,7 +1,7 @@
 simulation:
-  name: "demo_cable"
-  timestep: 0.05
-  end_time: 50.0
+  name: "test_cable"
+  timestep: 0.005
+  end_time: 100.0
   graphical: true
   fancy_robot: false
   save_csv: false
@@ -29,7 +29,7 @@ robot:
       - [0.0, 1.0]
 
     error_tol: 0.01
-    lambda: 4.0
+    lambda: 0.0
     # 0 to 1 parameter, ratio * L_e_s + (1 - ratio) * L_e_z
     # where L_e_s is computed with the fixed desired depth to the target
     # and L_e_z is computed with the actual z distance of each points
@@ -151,12 +151,12 @@ world:
       water_viscosity: 1.0e-3 # Viscosity of water in Pa.s
 
     current:
-      types: normal # Options: zero, normal, jet, constant, time_series, depth_profile
+      types: zero # Options: zero, normal, jet, constant, time_series, depth_profile
 
       # Type: normal (randomized per axis)
       normal:
         speed: [0.3, -0.3, 0.0, 0.0, 0.0, 0.0]
-        std: [0.10, 0.05, 0.00, 0.0, 0.0, 0.0]
+        std: [0.10, 0.05, 0.0, 0.0, 0.0, 0.0]
 
       # Type: jet (fully fixed 6D vector)
       jet:
@@ -197,43 +197,19 @@ world:
       - [1.0, 0.0, 0.0]
 
   cables:
-    cable_nb: 3
+    cable_nb: 1
     cable0:
-      initial_position: [5.0, 0.0, 10.0]
-      end_position: [5.0, 0.0, 1.0]
+      initial_position: [0.0, 0.0, 0.0]
+      end_position: [4.0, 0.0, 3.0]
       length: 9
       radius: 0.01
-      n_subdiv: 20
-      linear_mass: 0.3
+      n_subdiv: 50
+      linear_mass: 0.4
+      seg_mass:
+        - [49, -50]
       bending_coef: 5
       jakobsen_params:
         n_iter: 20
         penalty_coef: 1.8
       anchored: [1, 0]
-      color: [0.97, 0.97, 0.05]
-    cable1:
-      initial_position: [3.0, -2.0, 5.0]
-      end_position: [1.0, 0.0, 1.0]
-      length: 7
-      radius: 0.01
-      n_subdiv: 20
-      linear_mass: 0.6
-      bending_coef: 5
-      jakobsen_params:
-        n_iter: 20
-        penalty_coef: 1.8
-      anchored: [1, 0]
-      color: [0.97, 0.97, 0.05]
-    cable2:
-      initial_position: [0.0, 3.0, 5.0]
-      end_position: [1.0, 6.0, 1.0]
-      length: 9
-      radius: 0.01
-      n_subdiv: 20
-      linear_mass: 0.6
-      bending_coef: 5
-      jakobsen_params:
-        n_iter: 20
-        penalty_coef: 1.8
-      anchored: [1, 1]
       color: [0.97, 0.97, 0.05]

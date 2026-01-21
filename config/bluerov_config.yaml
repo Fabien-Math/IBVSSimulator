@@ -1,12 +1,12 @@
 simulation:
-  name: "test"
+  name: "smc_test_no_speed"
   timestep: 0.05
   end_time: 50.0
-  graphical: true
+  graphical: false
   fancy_robot: false
-  save_csv: false
   save_output: results/
-  save_graphs: false
+  save_csv: true
+  save_graphs: true
   show_graphs: false
   save_images: false
 
@@ -25,13 +25,34 @@ robot:
   mission:
     type: markers
     marker_position_in_image:
-      - [0.2, -0.2]
-      - [0.2, 0.2]
-      - [-0.2, 0.2]
-      - [-0.2, -0.2]
+      - [0.375, -0.5]
+      - [0.375, 0.5]
+      - [-0.375, 0.5]
+      - [-0.375, -0.5]
+    kinematics_only: false
+
+  controller:
+    type: SMC # SIMPLE, ADAP, SMC, PID
+
+    simple:
+      lambda: [12.0, 12.0, 12.0, 0.5, 0.5, 0.5]
+
+    adaptative:
+      lambda_min: [3.0, 3.0, 3.0, 0.0, 0.5, 0.0]
+      lambda_max: [10.0, 10.0, 10.0, 0.0, 0.5, 0.0]
+      func: linear # linear, quad
+
+    pid:
+      kp: [3.0, 4.0, 3.0, 0.0, 0.0, 0.5]
+      ki: [0.1, 0.1, 0.1, 0.0, 0.0, 0.05]
+      kd: [0.1, 0.2, 0.1, 0.0, 0.0, 0.0]
+
+    smc:
+      k: [30.0, 30.0, 30.0, 0.0, 0.0, 1.0]
+      lambda: [1.5, 1.5, 1.5, 0.0, 0.0, 1.0]
+      phi: [0.8, 0.8, 0.8, 0.8, 0.8, 0.8]
 
     error_tol: 0.01
-    lambda: 3.0
     # 0 to 1 parameter, ratio * L_e_s + (1 - ratio) * L_e_z
     # where L_e_s is computed with the fixed desired depth to the target
     # and L_e_z is computed with the actual z distance of each points
@@ -84,28 +105,28 @@ robot:
       name: HFR # Horizontal Front Right
       position: [0.140, 0.104, 0.066, 0.0, 0.0, -0.523599] # +30°
       thrust_limits: [-35, 45]
-      wn: 20
+      wn: 10
       zeta: 0.7
 
     thruster1:
       name: HFL # Horizontal Front Left
       position: [0.140, -0.104, 0.066, 0.0, 0.0, 0.523599] # -30°
       thrust_limits: [-35, 45]
-      wn: 20
+      wn: 10
       zeta: 0.7
 
     thruster2:
       name: HRR # Horizontal Rear Right
       position: [-0.140, 0.104, 0.066, 0.0, 0.0, -2.617994] # -150°
       thrust_limits: [-35, 45]
-      wn: 20
+      wn: 10
       zeta: 0.7
 
     thruster3:
       name: HRL # Horizontal Rear Left
       position: [-0.140, -0.104, 0.066, 0.0, 0.0, 2.617994] # +150°
       thrust_limits: [-35, 45]
-      wn: 20
+      wn: 10
       zeta: 0.7
 
     # -----------------------------------------------------
@@ -117,28 +138,28 @@ robot:
       name: VFR # Vertical Front Right
       position: [0.120, 0.218, 0.003, 0.0, -1.5708, 0.0] # down
       thrust_limits: [-35, 45]
-      wn: 20
+      wn: 10
       zeta: 0.7
 
     thruster5:
       name: VFL # Vertical Front Left
       position: [0.120, -0.218, 0.003, 0.0, -1.5708, 0.0]
       thrust_limits: [-35, 45]
-      wn: 20
+      wn: 10
       zeta: 0.7
 
     thruster6:
       name: VRR # Vertical Rear Right
       position: [-0.120, 0.218, 0.003, 0.0, -1.5708, 0.0]
       thrust_limits: [-35, 45]
-      wn: 20
+      wn: 10
       zeta: 0.7
 
     thruster7:
       name: VRL # Vertical Rear Left
       position: [-0.120, -0.218, 0.003, 0.0, -1.5708, 0.0]
       thrust_limits: [-35, 45]
-      wn: 20
+      wn: 10
       zeta: 0.7
 
 # Environment parameters

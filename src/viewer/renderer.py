@@ -45,7 +45,7 @@ class Renderer:
 
 		# Boolean
 		self.bool_robot_view = False
-		self.bool_follow_robot = True
+		self.bool_follow_robot = False
 		self.bool_draw_axis = True
 		self.bool_draw_fancy_robot = fancy_robot if graphical else False
 		self.bool_draw_wanted_markers = False
@@ -628,6 +628,9 @@ class Renderer:
 			self.gui.draw_robot_force_button.active = not self.gui.draw_robot_force_button.active
 		elif key in (b'h', b'H'):
 			self.bool_draw_hud = not self.bool_draw_hud
+		elif key in (b'k', b'K'):
+			self.camera_phi = np.pi/2
+			self.camera_theta = np.pi/2
 		elif key in (b'l', b'L'):
 			self.camera_phi = 0.0001
 			self.camera_theta = np.pi

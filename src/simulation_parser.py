@@ -51,10 +51,8 @@ def load_config(filename):
 	mission = {
 		'type': mission_cfg.get('type'),
 		'marker_pos_des': np.array(mission_cfg.get('marker_position_in_image'), dtype=float),
-		'tolerance': mission_cfg.get('error_tol', 0.0),
-		'lambda': mission_cfg.get('lambda', 0.0),
-		'ratio_zs': mission_cfg.get('ratio_zs', 0.0),
-		'img_computation': mission_cfg.get('img_computation', False),
+		'kinematics_only': mission_cfg.get('kinematics_only', False),
+		# For debug purpose
 		'save_images': simulation_cfg.get('save_images', False),
 	}
 
@@ -67,9 +65,51 @@ def load_config(filename):
 		'fps': camera_cfg.get('fps', 0),
 	}
 
+	controller_cfg = robot_cfg.get('controller', {})
+	controller = {
+		'img_computation': controller_cfg.get('img_computation', False),
+		'tolerance': controller_cfg.get('error_tol', 0.0),
+		'type': controller_cfg.get('type', "SIMPLE"),
+		'params': {},
+		'ratio_zs': controller_cfg.get('ratio_zs', 0.0),
+	}
+
+	ctrl_type = controller['type']
+	if ctrl_type == 'SIMPLE':
+			simple_params = controller_cfg.get('simple', {})
+			controller["params"].update({
+				'lambda': np.array(simple_params.get('lambda')),
+			})
+	if ctrl_type == 'ADAP':
+			adaptative_params = controller_cfg.get('adaptative', {})
+			controller["params"].update({
+				'lambda_min': np.array(adaptative_params.get('lambda_min')),
+				'lambda_max': np.array(adaptative_params.get('lambda_max')),
+				'func': adaptative_params.get('func', 'linear'),
+			})
+	if ctrl_type == 'SMC':
+			smc_params = controller_cfg.get('smc', {})
+			controller["params"].update({
+					'k': np.array(smc_params.get('k')),
+					'lambda': np.array(smc_params.get('lambda')),
+					'phi': np.array(smc_params.get('phi')),
+			})
+	if ctrl_type == 'PID':
+			pid_params = controller_cfg.get('pid', {})
+			controller["params"].update({
+					'kp': np.array(pid_params.get('kp')),
+					'ki': np.array(pid_params.get('ki')),
+					'kd': np.array(pid_params.get('kd')),
+			})
+	if ctrl_type != 'SIMPLE' and ctrl_type != 'ADAP' and ctrl_type != 'SMC' and ctrl_type != 'PID':
+			raise ValueError(f"Unsupported controller type: {ctrl_type}")
+
+
+
 	robot_params = {
 		'name': robot_cfg.get('name', 'unknown'),
 		'mission': mission,
+		'controller': controller,
 		'camera': camera,
 		'initial_conditions': {
 			'eta': np.array(robot_cfg.get('initial_conditions', {}).get('eta')),
@@ -155,6 +195,7 @@ def load_config(filename):
 			'radius': float(cable_cfg.get('radius', 0.0)),
 			'n_subdiv': int(cable_cfg.get('n_subdiv', 0)),
 			'linear_mass': float(cable_cfg.get('linear_mass', 0.0)),
+			'seg_mass': np.array(cable_cfg.get('seg_mass', []), dtype=float),
 			'bending_coef': float(cable_cfg.get('bending_coef', 0.0)),
 			'jakobsen_params': {
 				'n_iter': int(cable_cfg.get('jakobsen_params', {}).get('n_iter', 0)),

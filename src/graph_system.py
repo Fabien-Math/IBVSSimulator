@@ -38,6 +38,7 @@ class GraphSystem:
 
 		timestamps = self.logger.timestamps
 		etas = self.logger.etas  # actual pose [x, y, z, roll, pitch, yaw]
+		etas_err = self.logger.etas - self.logger.etas[-1]
 		nus = self.logger.nus    # actual velocities
 		visual_error_norm = self.logger.visual_error_norm
 		visual_errors = self.logger.visual_errors
@@ -52,10 +53,6 @@ class GraphSystem:
 		nu_labels = ["U", "V", "W", "P", "Q", "R"]
 		thruster_labels = ["HFR", "HFL", "HRR", "HRL", "VFR", "VFL", "VRR", "VRL"]
 
-		# Plot 6: Image graph of the markers positions
-		self.pre_image_graph()
-		self.plot_image_graph()
-		self.post_image_graph()
 
 		# Plot 1: State variables
 		self.plot_dof_grid(timestamps=timestamps, data_actual=etas, labels=eta_labels, title="Pose DoF overview")
@@ -63,8 +60,9 @@ class GraphSystem:
 
 		# Plot 2: Errors
 		self.plot_dof_grid(timestamps=timestamps, data_actual=np.where(visual_error_norm > 5, np.nan, visual_error_norm), title=r"Visual Error ($e$)", n=1, m=1)
-		self.plot_dof_grid(timestamps=timestamps, data_actual=visual_errors, title=r"Visual Errors ($e$)", n=2, m=4)
-		self.plot_on_one(timestamps=timestamps, data=visual_errors, title=r"Visual Errors Evolution ($e$)", ylabel="Error")
+		self.plot_dof_grid(timestamps=timestamps, data_actual=visual_errors, title=r"Visual Errors ($e_v$)", n=2, m=4)
+		self.plot_on_one(timestamps=timestamps, data=visual_errors, title=r"Visual Errors Evolution ($e_v$)", ylabel="Error")
+		self.plot_on_one(timestamps=timestamps, data=etas_err, title=r"Pose Errors Evolution ($e_p$)", ylabel="Error")
 
 		# Plot 3: Command
 		self.plot_dof_grid(timestamps=timestamps, data_actual=commands, title="Controller Commands")
@@ -76,6 +74,10 @@ class GraphSystem:
 		# Plot 5: Thruster forces vs Command
 		self.plot_command_vs_thrust(timestamps=timestamps, commands=commands, thrust_forces=thrust_forces)
 
+		# Plot 6: Image graph of the markers positions
+		self.pre_image_graph()
+		self.plot_image_graph()
+		self.post_image_graph()
 
 		if (show_graph):
 			plt.show()

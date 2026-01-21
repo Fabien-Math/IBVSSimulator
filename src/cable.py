@@ -38,10 +38,11 @@ def newton_raphson_circle(x0, length, d):
 
 
 class Cable:
-	def __init__(self, anchor1_pos, anchor2_pos, length, radius, n_subdiv, linear_mass, bending_coef, jokobsen_params, anchors_fixed, color=(1.0, 0.0, 0.0)):
+	def __init__(self, anchor1_pos, anchor2_pos, length, radius, n_subdiv, linear_mass, seg_mass, bending_coef, jokobsen_params, anchors_fixed, color=(1.0, 0.0, 0.0)):
 		self.length = length
 		self.radius = radius
 		self.linear_mass = linear_mass
+		self.seg_mass = seg_mass
 		self.n = n_subdiv
 
 		self.jakobsen_params = jokobsen_params
@@ -58,12 +59,8 @@ class Cable:
 		self.joints = [None] * self.n
 
 		self.color = color
-		# halfHeight = length/2)
-		# graMesh = OpenGLContent::BuildCylinder((GLfloat)(radius), (GLfloat)(length), (unsigned int)btMax(ceil(2.0*np.pi*radius/0.1), 32.0)) #Max 0.1 m cylinder wall slice width
-		# phyMesh[i] = OpenGLContent::BuildCableMesh((GLfloat)(_radius), pos, (unsigned int)_nSlice) #Max 0.1 m cylinder wall slice width
 
 		self.init_cable()
-
 		self.update_positions()
 
 
@@ -72,12 +69,15 @@ class Cable:
 
 	def init_cable(self):
 		seg_length = self.length / (self.n-1)
-		seg_mass = self.linear_mass * seg_length
+		nominal_seg_mass = self.linear_mass * seg_length
 
-		self.joints[0] = CableJoint(0, -1, 1, None, self.radius, seg_length, seg_mass, self.bending_coef, self.anchors_fixed[0])
+		self.joints[0] = CableJoint(0, -1, 1, None, self.radius, seg_length, nominal_seg_mass, self.bending_coef, self.anchors_fixed[0])
 		for i in range(1, self.n-1):
-			self.joints[i] = CableJoint(i, i-1, i+1, None, self.radius, seg_length, seg_mass, self.bending_coef, False)
-		self.joints[self.n - 1] = CableJoint(self.n - 1, self.n - 2, -1, None, self.radius, seg_length, seg_mass, self.bending_coef, self.anchors_fixed[1])
+			self.joints[i] = CableJoint(i, i-1, i+1, None, self.radius, seg_length, nominal_seg_mass, self.bending_coef, False)
+		self.joints[self.n - 1] = CableJoint(self.n - 1, self.n - 2, -1, None, self.radius, seg_length, nominal_seg_mass, self.bending_coef, self.anchors_fixed[1])
+
+		for i, m in self.seg_mass:
+			self.joints[int(i)].mass = m
 
 		self.init_cable_joints_pos()
 

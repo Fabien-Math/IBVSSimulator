@@ -36,6 +36,7 @@ class World:
 					radius=cable['radius'],
 					n_subdiv=cable['n_subdiv'],
 					linear_mass=cable['linear_mass'],
+					seg_mass=cable['seg_mass'],
 					bending_coef=cable['bending_coef'],
 					jokobsen_params=cable['jakobsen_params'],
 					anchors_fixed=cable['anchored'],

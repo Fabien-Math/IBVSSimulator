@@ -43,8 +43,6 @@ class CableJoint:
 		# Volumetric forces
 		f_weigth = self.mass * world.gravity
 		f_archi = - self.volume * world.ocean.water_density * world.gravity
-		if self.j1 == -1:
-			f_archi -= 5
 
 		self.force = f_weigth + f_archi
 
@@ -78,22 +76,21 @@ class CableJoint:
 			f_fluid = 0.5 * world.ocean.water_density * self.surface * self.cd_cylinder * np.abs(rel_vel) * rel_vel
 			self.force += f_fluid
 
-		damping_coef = min(self.mass / 10.0, 0.01)
+		damping_coef = min(abs(self.mass) / 10.0, 0.01)
 		damping_force = - damping_coef * self.vel
 		self.force += damping_force
-
 
 		# Cable traction
 		# if (self.j1 >= 0):
 		# 	vm = normalize(joints[self.j1].pos - self.pos)
 		# 	f_traction_m = np.dot(joints[self.j1].force, vm)
 		# 	if (f_traction_m > 0):
-		# 		self.force += 0.7 * f_traction_m * vm
+		# 		self.force += 0.9 * f_traction_m * vm
 		# if (self.j2 >= 0):
 		# 	vp = normalize(joints[self.j2].pos - self.pos)
 		# 	f_traction_p = np.dot(joints[self.j2].force, vp)
 		# 	if (f_traction_p > 0):
-		# 		self.force += 0.7 * f_traction_p * vp
+		# 		self.force += 0.9 * f_traction_p * vp
 
 
 

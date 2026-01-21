@@ -26,14 +26,14 @@ def newton_raphson_circle(x0, length, d):
 			xp = (c2(x+h, length, d) - c2(x-h, length, d)) / (2 * h)
 			x -= c2(x, length, d) / xp
 			if (n > n_max):
-				return x
+				return None
 	else:
 		while (abs(c1(x, length, d)) > err):
 			n += 1
 			xp = (c1(x+h, length, d) - c1(x-h, length, d)) / (2 * h)
 			x -= c1(x, length, d) / xp
 			if (n > n_max):
-				return x
+				return None
 	return x
 
 
@@ -83,47 +83,62 @@ class Cable:
 
 
 	def init_cable_joints_pos(self):
-		# Distance between two anchors
-		d = norm(self.anchor2 - self.anchor1)
-		# If cable can be initialized as a straight line
-		if (abs(self.length - d) < 0.05 * self.length):
-			hx = (self.anchor2[0] - self.anchor1[0]) / (self.n - 1)
-			hy = (self.anchor2[1] - self.anchor1[1]) / (self.n - 1)
-			hz = (self.anchor2[2] - self.anchor1[2]) / (self.n - 1)
+		a1 = self.anchor1
+		a2 = self.anchor2
+
+		d = np.linalg.norm(a2 - a1)
+
+		# Straight cable
+		if abs(self.length - d) < 0.05 * self.length:
 			for i in range(self.n):
-				x = self.anchor1[0] + i * hx
-				y = self.anchor1[1] + i * hy
-				z = self.anchor1[2] + i * hz
-				self.joints[i].pos = np.array([x, y, z])
-				self.joints[i].last_pos = np.array([x, y, z])
+				t = i / (self.n - 1)
+				p = (1 - t) * a1 + t * a2
+				self.joints[i].pos = p.copy()
+				self.joints[i].last_pos = p.copy()
 			return
 
-		x0 = d/2+1e-3
-		init_radius = newton_raphson_circle(x0 , self.length, d)
+		# Radius from arc length
+		R = newton_raphson_circle(d / 2 + 1e-3, self.length, d)
+		if R is None:
+			raise ValueError("ERROR ! Cable not initialized correctly!")
 
-		h = np.sqrt(init_radius * init_radius - (d/2)*(d/2))
+		# Circle center correction
+		sign = 1
+		if np.pi * R > self.length:
+			sign = -1
 
-		u = normalize(self.anchor2 - self.anchor1)
-		mp = 0.5 * (self.anchor1 + self.anchor2)
-		normal = normalize(np.cross((self.anchor1 - mp + np.array([0, 0, -1])), self.anchor2 - mp + np.array([0, 0, -1])))
-		ncrossu = np.cross(normal, u)
+		# Chord direction
+		u = normalize(a2 - a1)
 
-		angle = 2 * np.arcsin(d / (2 * init_radius))
-		offset = mp + ncrossu * h
-		if (self.length >= np.pi * d / 2):
-			offset = mp + ncrossu * h
-			angle = 2 * np.pi - 2 * np.arcsin(d / (2 * init_radius))
+		# Downward reference
+		ref = np.array([0.0, 0.0, 1.0])
+		n = normalize(np.cross(u, ref))
+		v = np.cross(n, u)
 
-		u = normalize(self.anchor2 - offset)
-		ncrossu = np.cross(normal, u)
+		# Circle center
+		h = np.sqrt(R * R - (d / 2) ** 2)
+		mp = 0.5 * (a1 + a2)
+		C = mp + sign * h * v
 
+		# Endpoint directions
+		e1 = normalize(a1 - C)
+		e2 = normalize(a2 - C)
+
+		angle = np.arccos(np.clip(np.dot(e1, e2), -1.0, 1.0))
+		minor_len = R * abs(angle)
+		major_len = R * (2 * np.pi - abs(angle))
+
+		if abs(self.length - major_len) < abs(self.length - minor_len):
+			angle = angle - np.sign(angle) * 2 * np.pi
+
+		# Place joints
 		for i in range(self.n):
-			t = angle - i * angle/(self.n - 1)
-			x = init_radius * np.cos(t) * u[0] + init_radius * np.sin(t) * ncrossu[0] + offset[0]
-			y = init_radius * np.cos(t) * u[1] + init_radius * np.sin(t) * ncrossu[1] + offset[1]
-			z = init_radius * np.cos(t) * u[2] + init_radius * np.sin(t) * ncrossu[2] + offset[2]
-			self.joints[i].pos = np.array([x, y, z])
-			self.joints[i].last_pos = np.array([x, y, z])
+			t = i / (self.n - 1)
+			phi = t * angle
+			p = C + R * (np.cos(phi) * e1 + sign * np.sin(phi) * np.cross(n, e1))
+			self.joints[i].pos = p.copy()
+			self.joints[i].last_pos = p.copy()
+
 
 	def get_cable_length(self):
 		totalLength = 0.0

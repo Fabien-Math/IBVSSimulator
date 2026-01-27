@@ -21,7 +21,7 @@ class Trace:
 		self.count += 1
 
 
-	def draw(self, color=(0.1, 0.6, 0.9)):
+	def draw_line(self, color=(0.1, 0.6, 0.9)):
 		if self.count < 2:
 			return  # Need at least 2 points to draw a line
 
@@ -45,3 +45,33 @@ class Trace:
 		glBindBuffer(GL_ARRAY_BUFFER, 0)
 		glDisableClientState(GL_VERTEX_ARRAY)
 		glEnable(GL_LIGHTING)
+
+
+
+	def draw_dot(self, color=(0.1, 0.6, 0.9), point_size=5.0):
+	    if self.count < 1:
+	        return  # Need at least 1 point to draw a dot
+
+	    # Upload to GPU
+	    glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
+	    glBufferData(GL_ARRAY_BUFFER, self.positions[:self.count].nbytes, self.positions[:self.count], GL_DYNAMIC_DRAW)
+	    glBindBuffer(GL_ARRAY_BUFFER, 0)
+
+	    glDisable(GL_LIGHTING)
+
+	    glEnableClientState(GL_VERTEX_ARRAY)
+	    glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
+	    glVertexPointer(3, GL_FLOAT, 0, None)
+
+	    glColor3f(*color)
+	    glPointSize(point_size)
+
+	    # Draw points
+	    glDrawArrays(GL_POINTS, 0, self.count)
+
+		# Reset point size
+	    glPointSize(1.0)
+
+	    glBindBuffer(GL_ARRAY_BUFFER, 0)
+	    glDisableClientState(GL_VERTEX_ARRAY)
+	    glEnable(GL_LIGHTING)

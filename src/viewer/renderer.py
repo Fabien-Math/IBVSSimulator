@@ -5,30 +5,23 @@ from OpenGL.GLUT import *
 from scipy.spatial.transform import Rotation as R
 
 from viewer.menu import GUI
-from viewer.hud import HUD
 from viewer.trace import Trace
 from viewer.obj_manager import load_obj_with_tex, create_vertex_data, create_vbo, draw_vbo_textured
-from viewer.offscreen_renderer import OffscreenRenderer
-from viewer.cable_mesh import GPUCable
-
-
 import time
 
 RAD2DEG = 180 / 3.1415926535
 DEG2RAD = 3.1415926535 / 180
 class Renderer:
-	def __init__(self, timestep, end_time, graphical=True, fancy_robot=True, window_width=1600, window_height=900):
+	def __init__(self, window_width=1600, window_height=900):
 		# Viewport variables
-		self.graphical = graphical
 		self.window_width = window_width
 		self.window_height = window_height
 
 		# Time
-		self.dt = timestep
 		self.time = 0.0
-		self.end_time = end_time
 		self.last_frame_time = time.time()
-		self.interframe_delay = 1 + 15 * graphical # millisecond
+		self.interframe_delay = 16 # millisecond -> 60 FPS
+		self.dt = 0.016
 
 		# Playback & animation
 		self.running = True
@@ -47,23 +40,11 @@ class Renderer:
 		self.bool_robot_view = False
 		self.bool_follow_robot = False
 		self.bool_draw_axis = True
-		self.bool_draw_fancy_robot = fancy_robot if graphical else False
-		self.bool_draw_wanted_markers = False
 
 		# Robot related variable (Not initialized yet so the viewer can be run multiple times with different robot)
 		self.robot = None
-		self.world = None
-		self.gpu_cables = None
 		self.markers = None
 		self.marker_colors = None
-		self.wanted_markers = None
-
-		# Robot camera
-		self.camera = None
-		self.offscreen_renderer = None
-		self.img = None
-		self.last_img_ts = 0.0
-		self.new_img = False
 
 		# OpenGL resources for fancy robot
 		self.robot_vbo = None
@@ -72,98 +53,28 @@ class Renderer:
 
 		# Other UI/State
 		self.gui = None
-		self.hud = None
 		self.robot_trace = None
-		self.bool_draw_hud = True
 
 #
 	""" ------------------------------------------------------------ """
 	""" --------------------   MAIN FUNCTIONS   -------------------- """
 	""" ------------------------------------------------------------ """
-#
 	def manage_camera_pose(self):
-		if self.bool_robot_view:
-			cx, cy, cz = self.robot.eta[:3]
+		if self.bool_follow_robot:
+			# Pass transform of the object being followed
+			tf = self.robot.tf
+			pos = tf[:3]
+			self.pan_x, self.pan_y, self.pan_z = pos[0], pos[1], pos[2]
 
-			V = np.array([cx, cy, cz + 1000])
-			Rwr = R.from_euler('xyz', self.robot.eta[3:]).as_matrix()
-			Rrc = self.onboard_camera.Rrc
-			self.pan_x, self.pan_y, self.pan_z = Rwr @ Rrc @ V
+		cx = self.camera_radius * np.sin(self.camera_phi) * np.cos(self.camera_theta)
+		cy = self.camera_radius * np.sin(self.camera_phi) * np.sin(self.camera_theta)
+		cz = self.camera_radius * np.cos(self.camera_phi)
 
-			up_local = np.array([0, -1, 0])
-			up = Rwr @ Rrc @ up_local
-
-			gluLookAt(cx, cy, cz,
-					self.pan_x, self.pan_y, self.pan_z,
-					up[0], up[1], up[2])
-
-		else:
-			if self.bool_follow_robot:
-				tf = self.robot.eta
-				pos = tf[:3]
-				self.pan_x, self.pan_y, self.pan_z = pos[0], pos[1], pos[2]
-
-			cx = self.camera_radius * np.sin(self.camera_phi) * np.cos(self.camera_theta)
-			cy = self.camera_radius * np.sin(self.camera_phi) * np.sin(self.camera_theta)
-			cz = self.camera_radius * np.cos(self.camera_phi)
-
-			gluLookAt(cx + self.pan_x, cy + self.pan_y, -cz + self.pan_z,
-					self.pan_x, self.pan_y, self.pan_z,
-					0, 0, -1)
-
-	def render_onboard_camera(self):
-		if self.img is not None:
-			if self.time + 1e-5 <= self.last_img_ts + 1 / self.onboard_camera.fps: # Avoid rounding errors
-				return self.img
-
-		self.new_img = True
-		# Bind the offscreen FBO
-		self.offscreen_renderer.bind()
-
-		# Clear buffers
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-		# Set projection
-		glMatrixMode(GL_PROJECTION)
-		glLoadIdentity()
-		gluPerspective(self.onboard_camera.fov, self.onboard_camera.ratio, 0.01, 300.0)
-
-		# Set modelview / camera
-		glMatrixMode(GL_MODELVIEW)
-		glLoadIdentity()
-
-		cx, cy, cz = self.robot.eta[:3]
-		V = np.array([cx, cy, cz + 1000])
-		Rwr = R.from_euler('xyz', self.robot.eta[3:]).as_matrix()
-		Rrc = self.onboard_camera.Rrc
-		pan_x, pan_y, pan_z = Rwr @ Rrc @ V
-
-		up_local = np.array([0, -1, 0])
-		up = Rwr @ Rrc @ up_local
-
-		gluLookAt(cx, cy, cz,
-				pan_x, pan_y, pan_z,
-				up[0], up[1], up[2])
-
-		# Draw the scene (markers, etc.)
-		self.draw_markers(bool_draw_axis=False)
-		self.draw_cables()
-
-		# Flush and read pixels
-		glFlush()
-
-		self.img = self.offscreen_renderer.read_pixels()
-		self.last_img_ts = self.time
-
-		# Unbind the FBO to restore main framebuffer
-		self.offscreen_renderer.unbind()
-		self.restore_main_viewport()
-
-		return self.img
+		gluLookAt(cx + self.pan_x, cy + self.pan_y, -cz + self.pan_z,
+				self.pan_x, self.pan_y, self.pan_z,
+				0, 0, -1)
 
 	def display(self):
-		if not self.graphical:
-			return
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 		glLoadIdentity()
@@ -174,26 +85,9 @@ class Renderer:
 
 		# Draw robot
 		if not self.bool_robot_view:
-			if self.bool_draw_fancy_robot:
-				self.draw_robot()
-			else:
-				self.draw_cubic_robot()
-		else:
-			if self.bool_draw_wanted_markers:
-				self.draw_marker_positions()
+			self.draw_robot()
 
-		if self.gui.draw_wps_button.active:
-			self.draw_markers()
-		self.draw_cables()
-
-		if self.gui.draw_robot_force_button.active:
-			self.draw_robot_force(draw_on_top=True)
-
-		if self.bool_draw_hud:
-			self.hud.draw()
-
-		if self.gui.draw_thruster_force_button.active:
-			self.draw_thrusters_thrust(draw_on_top=True)
+		self.draw_markers()
 
 		if self.gui.draw_trace_button.active:
 			self.robot_trace.draw()
@@ -222,7 +116,6 @@ class Renderer:
 		new_height = h if h > 300 else 300
 		self.window_width, self.window_height = new_width, new_height
 		self.gui.update_window_size(new_width, new_height)
-		self.hud.update_window_size(new_width, new_height)
 
 		glutReshapeWindow(new_width, new_height)
 		glViewport(0, 0, new_width, new_height)
@@ -234,26 +127,12 @@ class Renderer:
 
 
 	def update(self, value):
-		if self.running or self.step_request:
+		if self.running:
 			self.time += self.dt
+			self.robot.update()
 
-			img = self.render_onboard_camera()
-			if self.new_img:
-				self.robot.update_img(img)
-				self.new_img = False
-			self.robot.update(self.dt)
-			self.step_request = False
-
-		if self.graphical:
-			self.robot_trace.add_last(self.robot.eta[:3])
-			glutPostRedisplay()
-		if not self.graphical:
-			print(f"Simulation time: {self.time:.2f} s", end='\r')
-
-		# If mission finished, stop updating the simulation and exit
-		if self.exit or self.robot.mission_finished or self.time > self.end_time:
-			print(" " * (len(f"Simulation time: {self.time:.2f} s")+10), end='\r') # Clear console buffer with ctrl C
-			glutLeaveMainLoop()
+		self.robot_trace.add_last(self.robot.tf[:3])
+		glutPostRedisplay()
 
 		glutTimerFunc(self.interframe_delay, self.update, 0)
 
@@ -298,35 +177,21 @@ class Renderer:
 	def init_robot(self, robot):
 		# Map the robot from the simulation
 		self.robot = robot
-		self.wanted_markers = robot.controller.wanted_marker_pos
 
-		# Initialize robot camera inside renderer
-		self.onboard_camera = robot.camera
-		self.last_img_ts = 0.0
+		# Initialize robot mesh
+		robot_mesh = load_obj_with_tex("config/data/BlueROV2H.obj", "config/data/BlueROVTexture.png")
+		vertex_data = create_vertex_data(*robot_mesh[:4])
+		self.robot_vbo = create_vbo(vertex_data)
+		self.robot_texture_id = robot_mesh[4]
+		self.robot_vertex_count = len(vertex_data) // 8
 
-		# Load fancy robot models
-		if self.bool_draw_fancy_robot:
-			robot_mesh = load_obj_with_tex("config/data/BlueROV2H.obj", "config/data/BlueROVTexture.png")
-			vertex_data = create_vertex_data(*robot_mesh[:4])
-			self.robot_vbo = create_vbo(vertex_data)
-			self.robot_texture_id = robot_mesh[4]
-			self.robot_vertex_count = len(vertex_data) // 8
-
-		self.offscreen_renderer = OffscreenRenderer(self.onboard_camera)
 		self.robot_trace = Trace()
 
-	def init_world(self, world):
-		self.world = world
-		self.markers = world.markers
-		self.gpu_cables = [GPUCable(cable) for cable in world.cables]
-		self.marker_colors = world.marker_colors
-
-
-	def run(self, robot, world):
+	def run(self, robot):
 		glutInit()
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH | GLUT_MULTISAMPLE)
 		glutInitWindowSize(self.window_width, self.window_height)
-		glutCreateWindow(b"Control simulator")
+		glutCreateWindow(b"OpenGL Viewer")
 
 		self.init_gl()
 
@@ -339,17 +204,12 @@ class Renderer:
 		glutPassiveMotionFunc(self.hover_button)
 		glutKeyboardFunc(self.keyboard)
 		glutSpecialFunc(self.special_keys)
-		glutJoystickFunc(self.joystick_func, 50)
 
-		# Must be called after OpenGL and GLUT initialized
-		self.init_world(world)
-		self.ocean = world.ocean
+		# Must be called after OpenGL and GLUT initialized so that the context is well defined
 		self.init_robot(robot)
 
 		# GUI
 		self.gui = GUI(window_width=self.window_width, window_height=self.window_height)
-		# HUD
-		self.hud = HUD(self.robot, window_width=self.window_width, window_height=self.window_height)
 
 		glutMainLoop()
 
@@ -358,19 +218,11 @@ class Renderer:
 	""" --------------------   DRAW FUNCTIONS   -------------------- """
 	""" ------------------------------------------------------------ """
 #
-	def draw_circle_outline(self, x, y, radius=10, segments=64):
-		"""Draw an empty circle (outline) at (x, y)."""
-		glBegin(GL_LINE_LOOP)
-		for i in range(segments):
-			theta = 2.0 * np.pi * i / segments
-			glVertex2f(x + radius * np.cos(theta),
-					y + radius * np.sin(theta))
-		glEnd()
-
 	def draw_markers(self, bool_draw_axis=True):
-		for tf, color in zip(self.markers, self.marker_colors):
+		color = (1, 0, 0)
+		for tf in self.robot.tfs:
 			glPushMatrix()
-			glTranslatef(*tf)
+			glTranslatef(*tf[:3])
 			# glRotatef(tf[5] * RAD2DEG, 0, 0, 1)
 			# glRotatef(tf[4] * RAD2DEG, 0, 1, 0)
 			# glRotatef(tf[3] * RAD2DEG, 1, 0, 0)
@@ -386,17 +238,6 @@ class Renderer:
 		glColor3f(*color)  # red
 		glutSolidSphere(size, 20, 20)
 		glEnable(GL_LIGHTING)
-
-
-	def draw_marker_positions(self):
-		pass # TO BE DONE
-
-	def draw_cables(self):
-		for gpu_cable in self.gpu_cables:
-			gpu_cable.update_positions()  # update VBO if cable moved
-			gpu_cable.draw()
-
-
 
 	def draw_axis(self, length=0.5, line_width=1.5, draw_on_top=False):
 		glDisable(GL_LIGHTING)
@@ -426,7 +267,7 @@ class Renderer:
 		glEnable(GL_LIGHTING)
 
 	def draw_robot(self):
-		tf = self.robot.eta
+		tf = self.robot.tf
 		glPushMatrix()
 		glTranslatef(*tf[:3])
 		glRotatef(tf[5] * RAD2DEG, 0.0, 0.0, 1.0)
@@ -437,166 +278,6 @@ class Renderer:
 			self.draw_axis()
 		glPopMatrix()
 
-	def draw_cubic_robot(self, size=0.3):
-		"""
-		Draws a cubic AUV from multiple cubes to visualize orientation:
-		- Main body cube
-		- Forward cube (nose)
-		- Top cube (sensor/antenna)
-		- Left + Right cubes (thruster pods)
-		"""
-
-		def draw_cube(s):
-			"""Draws a single cube centered at local origin."""
-			h = s / 2.0
-			verts = [
-				[-h, -h, -h], [ h, -h, -h], [ h,  h, -h], [-h,  h, -h],  # Back
-				[-h, -h,  h], [ h, -h,  h], [ h,  h,  h], [-h,  h,  h],  # Front
-			]
-			faces = [
-				(0, 1, 2, 3),
-				(4, 5, 6, 7),
-				(0, 1, 5, 4),
-				(3, 2, 6, 7),
-				(1, 2, 6, 5),
-				(0, 3, 7, 4)
-			]
-			normals = [
-				(0, 0, -1),
-				(0, 0,  1),
-				(0,-1,  0),
-				(0, 1,  0),
-				(1, 0,  0),
-				(-1,0,  0)
-			]
-			glBegin(GL_QUADS)
-			for face, normal in zip(faces, normals):
-				glNormal3f(*normal)
-				for idx in face:
-					glVertex3f(*verts[idx])
-			glEnd()
-
-
-		tf = self.robot.eta
-		glPushMatrix()
-		glTranslatef(*tf[:3])
-		glRotatef(tf[5] * RAD2DEG, 0.0, 0.0, 1.0)
-		glRotatef(tf[4] * RAD2DEG, 0.0, 1.0, 0.0)
-		glRotatef(tf[3] * RAD2DEG, 1.0, 0.0, 0.0)
-
-		# --- MAIN BODY ---
-		glPushMatrix()
-		glColor3f(61/255, 209/255, 242/255)
-		draw_cube(size)
-		glPopMatrix()
-
-		# --- NOSE CUBE (front) ---
-		glPushMatrix()
-		glColor3f(220/255, 225/255, 31/255)
-		glTranslatef(size * 0.7, 0, 0)
-		draw_cube(size * 0.4)
-		glPopMatrix()
-
-		# --- LEFT THRUSTER POD ---
-		glPushMatrix()
-		glColor3f(16/255, 79/255, 117/255)
-		glTranslatef(0, -size * 0.55, 0)
-		draw_cube(size * 0.2)
-		glPopMatrix()
-
-		# --- RIGHT THRUSTER POD ---
-		glPushMatrix()
-		glColor3f(16/255, 79/255, 117/255)
-		glTranslatef(0, size * 0.55, 0)
-		draw_cube(size * 0.2)
-		glPopMatrix()
-
-		if self.bool_draw_axis:
-			self.draw_axis()
-
-
-		tf = self.onboard_camera.tf
-		glTranslatef(*tf[:3])
-		glRotatef(tf[5] * RAD2DEG, 0.0, 0.0, 1.0)
-		glRotatef(tf[4] * RAD2DEG, 0.0, 1.0, 0.0)
-		glRotatef(tf[3] * RAD2DEG, 1.0, 0.0, 0.0)
-
-
-		if self.bool_draw_axis:
-			self.draw_axis()
-		glPopMatrix()
-
-	def draw_thrusters_thrust(self, length=1.0, line_width=1.5, draw_on_top=False):
-		glDisable(GL_LIGHTING)
-		if draw_on_top:
-			glDisable(GL_DEPTH_TEST)  # Disable depth test to draw on top
-		thrusters = self.robot.thrusters
-		robot_pos = self.robot.eta[:3]
-		rotation_matrix = R.from_euler('xyz', self.robot.eta[3:]).as_matrix()
-
-
-		glLineWidth(line_width)  # Set thicker line width
-		glBegin(GL_LINES)
-
-		for i in range(thrusters.n_thrusters):
-			thruster_pos = robot_pos + rotation_matrix @ thrusters.positions[i, :3]
-			max_abs_thrust = np.max(np.abs(thrusters.thrust_limits[i]))
-			thrust = thrusters.thrust[i]
-			thrust_ratio = thrust / max_abs_thrust
-			max_thrust_pos = robot_pos + rotation_matrix @ (thrusters.positions[i, :3] + length * thrust_ratio * thrusters.T[:3, i])
-
-			# Thrusters
-			glColor3f(1, 1, 0)
-			glVertex3f(*thruster_pos)
-			glVertex3f(*max_thrust_pos)
-
-		glEnd()
-		glLineWidth(1.0)  # Reset line width
-
-		if draw_on_top:
-			glEnable(GL_DEPTH_TEST)  # Re-enable depth test
-
-		glEnable(GL_LIGHTING)
-
-	def draw_robot_force(self, length=0.5, line_width=1.5, draw_on_top=False):
-		glDisable(GL_LIGHTING)
-		if draw_on_top:
-			glDisable(GL_DEPTH_TEST)  # Disable depth test to draw on top
-		dynamics = self.robot.dynamics
-		robot_pos = self.robot.eta[:3]
-		rotation_matrix = R.from_euler('xyz', self.robot.eta[3:]).as_matrix()
-		thrust_forces = rotation_matrix @ dynamics.thrust_forces[:3]
-		total_forces = rotation_matrix @ dynamics.forces[:3]
-		hydro_forces = rotation_matrix @ dynamics.hydro_forces[:3]
-
-		max_norm = np.max([np.linalg.norm(thrust_forces), np.linalg.norm(hydro_forces),np.linalg.norm(total_forces)])
-		thrust_forces /= max_norm
-		total_forces /= max_norm
-		hydro_forces /= max_norm
-
-		glLineWidth(line_width)  # Set thicker line width
-		glBegin(GL_LINES)
-		# Thruster force
-		glColor3f(1, 0.8, 0)
-		glVertex3f(*robot_pos)
-		glVertex3f(*(robot_pos + length * thrust_forces))
-
-		# Total force
-		glColor3f(1, 0, 1)
-		glVertex3f(*robot_pos)
-		glVertex3f(*(robot_pos + length * total_forces))
-
-		# Hydro forces
-		glColor3f(0, 1, 1)
-		glVertex3f(*robot_pos)
-		glVertex3f(*(robot_pos + length * hydro_forces))
-		glEnd()
-		glLineWidth(1.0)  # Reset line width
-
-		if draw_on_top:
-			glEnable(GL_DEPTH_TEST)  # Re-enable depth test
-
-		glEnable(GL_LIGHTING)
 
 	def draw_ground(self, size=100, step=1):
 		glDisable(GL_LIGHTING)
@@ -620,14 +301,8 @@ class Renderer:
 			self.running = not self.running
 		elif key in (b'c', b'C'):
 			self.bool_robot_view = not self.bool_robot_view
-		elif key in (b'd', b'D'):
-			self.bool_draw_wanted_markers = not self.bool_draw_wanted_markers
 		elif key in (b'f', b'F'):
 			self.bool_follow_robot = not self.bool_follow_robot
-		elif key in (b'g', b'G'):
-			self.gui.draw_robot_force_button.active = not self.gui.draw_robot_force_button.active
-		elif key in (b'h', b'H'):
-			self.bool_draw_hud = not self.bool_draw_hud
 		elif key in (b'k', b'K'):
 			self.camera_phi = np.pi/2
 			self.camera_theta = np.pi/2
@@ -643,26 +318,9 @@ class Renderer:
 			self.step_request = True
 		elif key in (b't', b'T'):
 			self.gui.draw_trace_button.active = not self.gui.draw_trace_button.active
-		elif key in (b'v', b'V'):
-			self.gui.draw_thruster_force_button.active = not self.gui.draw_thruster_force_button.active
-		elif key in (b'w', b'W'):
-			self.gui.draw_wps_button.active = not self.gui.draw_wps_button.active
 		elif key == b'\x1b':  # ESC
 			print("Exiting simulation...")
 			glutLeaveMainLoop()
-
-	def joystick_func(self, buttons, x, y, z):
-		if not (x == y and y == z):
-			if buttons == 2:
-				self.robot.eta[2] += y * 50e-6   # for example, add x-axis
-			else:
-				self.robot.eta[0] += -y * 50e-6   # for example, add x-axis
-			self.robot.eta[1] += x * 50e-6  # add y-axis
-			# self.robot.eta[2] += z * 50e-6  # add z-axis
-			if buttons == 2:
-				self.robot.eta[4] += z * 50e-6   # for example, add x-axis
-			else:
-				self.robot.eta[5] += z * 50e-6  # add z-axis
 
 	def special_keys(self, key, x, y):
 		if key == GLUT_KEY_LEFT:

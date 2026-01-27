@@ -9,10 +9,6 @@ class GUI:
 		self.menu_button = Button(10, window_height - 40, 90, 30, "")
 		self.draw_reference_button = Button(10, window_height - 230, 20, 20, "Draw reference", active=False)
 		self.draw_trace_button = Button(10, window_height - 260, 20, 20, "Draw trace", active=False)
-		self.draw_wps_button = Button(10, window_height - 290, 20, 20, "Draw waypoints", active=True)
-		self.draw_robot_button = Button(10, window_height - 320, 20, 20, "Draw robot", active=True)
-		self.draw_robot_force_button = Button(10, window_height - 350, 20, 20, "Draw robot forces", active=False)
-		self.draw_thruster_force_button = Button(10, window_height - 380, 20, 20, "Draw thursts", active=False)
 
 		self.window_width = window_width
 		self.window_height = window_height
@@ -58,10 +54,6 @@ class GUI:
 		self.window_width = window_width
 		self.draw_reference_button.update_position(10, window_height - 230, 20, 20)
 		self.draw_trace_button.update_position(10, window_height - 260, 20, 20)
-		self.draw_wps_button.update_position(10, window_height - 290, 20, 20)
-		self.draw_robot_button.update_position(10, window_height - 320, 20, 20)
-		self.draw_robot_force_button.update_position(10, window_height - 350, 20, 20)
-		self.draw_thruster_force_button.update_position(10, window_height - 380, 20, 20)
 		self.menu_button.update_position(10, window_height - 40, 90, 30)
 
 	def draw_robot_info(self, eta, nu, line_height=20):
@@ -109,10 +101,6 @@ class GUI:
 			self.draw_robot_info(robot.eta, robot.nu)
 			self.draw_reference_button.draw()
 			self.draw_trace_button.draw()
-			self.draw_wps_button.draw()
-			self.draw_robot_button.draw()
-			self.draw_robot_force_button.draw()
-			self.draw_thruster_force_button.draw()
 
 		self.menu_button.draw()
 		self.draw_hamburger_icon(15, self.window_height - 30, width=20)

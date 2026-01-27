@@ -8,6 +8,7 @@ from dynamics import Dynamics
 from camera import Camera
 # Controller
 from controllers.ibvs_controller import IBVSController
+from controllers.ibvs_center_controller import IBVSCenterController
 from controllers.ibvs_smc_controller import IBVSSMController
 from controllers.ibvs_pid_controller import IBVSPIDController
 from controllers.ibvs_adaptative_controller import IBVSADAPController
@@ -38,8 +39,10 @@ class Robot:
 		self.camera = Camera(robot_params["camera"])
 		ctrl_type = robot_params["controller"]['type']
 		match ctrl_type:
-			case 'SIMPLE':
+			case 'RAW':
 				self.controller = IBVSController(robot_params["controller"], robot_params["mission"], self.camera, world)
+			case 'SIMPLE':
+				self.controller = IBVSCenterController(robot_params["controller"], robot_params["mission"], self.camera, world)
 			case 'ADAP':
 				self.controller = IBVSADAPController(robot_params["controller"], robot_params["mission"], self.camera, world)
 			case 'SMC':

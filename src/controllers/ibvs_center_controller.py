@@ -5,7 +5,7 @@ import cv2
 from scipy.spatial.transform import Rotation as R
 
 
-class IBVSController:
+class IBVSCenterController:
 	def __init__(self, controller_params, mission_params, camera, world):
 
 		self.camera = camera
@@ -20,7 +20,6 @@ class IBVSController:
 
 		### IBVS parameters
 		self.lambda_gain = controller_params['params']['lambda']
-		coord_type = controller_params['params']['coord_type']
 		self.tolerance = controller_params['tolerance']
 		self.ratio_zs = controller_params['ratio_zs']
 		self.img_computation = controller_params['img_computation']
@@ -33,10 +32,6 @@ class IBVSController:
 		self.wanted_marker_pos = mission_params['marker_pos_des'].flatten()
 
 		### Simulation parameters
-		if coord_type == "cyl":
-			self.update = self.update_cylindrical
-		else:
-			self.update = self.update_cartesian
 		self.time = 0
 		self.save_images = mission_params['save_images']
 
@@ -48,58 +43,7 @@ class IBVSController:
 		self.img = img.copy()
 		self.new_img = True
 
-
-	def update_cylindrical(self, eta, nu, dt, time):
-		"""
-		Function computing IBVS given the rendered image from viewer
-
-		:param eta: Robot state
-		"""
-		self.time = time
-		if self.save_images and self.new_img:
-			self.save_image()
-			self.new_img = False
-
-		points = self.detect_target(eta)
-		zs = points[:, 2]
-		self.xs = points[:, 0]
-		self.ys = points[:, 1]
-		rho = np.sqrt(self.xs**2 + self.ys**2)
-		theta = np.atan2(self.ys, self.xs)
-
-		x_v = np.array([[x, y] for x, y in zip(self.xs, self.ys)]).flatten()
-		self.errors = self.wanted_marker_pos - x_v
-		self.error_norm = norm(self.errors)
-
-		L_e_z = np.array([
-				[-np.cos(t)/z,  	-np.sin(t)/z,     r/z, (1 + r**2) * np.sin(t), -(1 + r**2) * np.cos(t),  0] +
-				[ np.sin(t)/(r*z),  -np.cos(t)/(r*z), 0,   np.cos(t)/r,  		   np.sin(t)/r,      		-1]
-			for r, t, z in zip(rho, theta, zs)
-		])
-
-		z_s = 1
-		L_e_s = np.array([
-				[-np.cos(t)/z_s,  	-np.sin(t)/z_s,     r/z_s, (1 + r**2) * np.sin(t), -(1 + r**2) * np.cos(t),  0] +
-				[ np.sin(t)/(r*z_s),  -np.cos(t)/(r*z_s), 0,   np.cos(t)/r,  		   np.sin(t)/r,      		-1]
-			for r, t in zip(rho, theta)
-		])
-
-		L_e_z = L_e_z.reshape((len(points)*2, 6))
-		L_e_s = L_e_s.reshape((len(points)*2, 6))
-		L_e = self.ratio_zs * L_e_s + (1 - self.ratio_zs) * L_e_z
-
-		if L_e.shape[0] == L_e.shape[1]:
-			if np.linalg.det(L_e):	# Another level of security
-				L_e_p = inv(L_e)	# Matrix inverse if the matrix is square
-			else:
-				L_e_p = pinv(L_e)	# Moore-Penrose inverse
-		else:
-			L_e_p = pinv(L_e)	# Moore-Penrose inverse
-
-		ibvs_cmd = self.lambda_gain * self.camera.Vrc @ (L_e_p @ self.errors)
-		self.cmd = ibvs_cmd
-
-	def update_cartesian(self, eta, nu, dt, time):
+	def update(self, eta, nu, dt, time):
 		"""
 		Function computing IBVS given the rendered image from viewer
 
@@ -144,8 +88,28 @@ class IBVSController:
 		else:
 			L_e_p = pinv(L_e)	# Moore-Penrose inverse
 
+ 		# Keep track of the target in the center of the image
+		x_cog, y_cog, z_cog = 0.0, 0.0, 0.0
+		for xs, ys, zs_i in zip(self.xs, self.ys, zs):
+			x_cog += xs
+			y_cog += ys
+			z_cog += zs_i
+		x_cog /= len(self.xs)
+		y_cog /= len(self.ys)
+		z_cog /= len(zs)
+		ratio = min(1, x_cog**2 + y_cog**2)
+
+		z_s = max(1, z_cog)
+		L_center_p = np.linalg.pinv([
+				[-1/z_s,  	0,    x_cog/z_s,  x_cog * y_cog,     -(1 + x_cog**2),  y_cog],
+				[ 0, 	   -1/z_s,  y_cog/z_s,  1 + y_cog**2,  -x_cog * y_cog,      -x_cog]])
+
+		cog_error = - np.array([x_cog, y_cog])
+
 		ibvs_cmd = self.lambda_gain * self.camera.Vrc @ (L_e_p @ self.errors)
-		self.cmd = ibvs_cmd
+		centering_cmd = self.lambda_gain * self.camera.Vrc @ (L_center_p @ cog_error)
+
+		self.cmd = (1 - ratio) * ibvs_cmd + ratio * centering_cmd
 
 
 	def detect_target_exact(self, eta) -> np.ndarray:

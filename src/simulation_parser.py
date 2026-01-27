@@ -80,6 +80,13 @@ def load_config(filename):
 			controller["params"].update({
 				'lambda': np.array(simple_params.get('lambda')),
 			})
+	print(controller["params"])
+	if ctrl_type == 'RAW':
+			raw_params = controller_cfg.get('raw', {})
+			controller["params"].update({
+				'lambda': np.array(raw_params.get('lambda')),
+				'coord_type': raw_params.get('coord_type'),
+			})
 	if ctrl_type == 'ADAP':
 			adaptative_params = controller_cfg.get('adaptative', {})
 			controller["params"].update({
@@ -101,7 +108,7 @@ def load_config(filename):
 					'ki': np.array(pid_params.get('ki')),
 					'kd': np.array(pid_params.get('kd')),
 			})
-	if ctrl_type != 'SIMPLE' and ctrl_type != 'ADAP' and ctrl_type != 'SMC' and ctrl_type != 'PID':
+	if ctrl_type != 'RAW' and ctrl_type != 'SIMPLE' and ctrl_type != 'ADAP' and ctrl_type != 'SMC' and ctrl_type != 'PID':
 			raise ValueError(f"Unsupported controller type: {ctrl_type}")
 
 

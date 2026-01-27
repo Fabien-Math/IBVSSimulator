@@ -39,7 +39,6 @@ class Renderer:
 		# Boolean
 		self.bool_robot_view = False
 		self.bool_follow_robot = False
-		self.bool_draw_axis = True
 
 		# Robot related variable (Not initialized yet so the viewer can be run multiple times with different robot)
 		self.robot = None
@@ -53,7 +52,7 @@ class Renderer:
 
 		# Other UI/State
 		self.gui = None
-		self.robot_trace = None
+		self.robot_traces = None
 
 #
 	""" ------------------------------------------------------------ """
@@ -90,14 +89,15 @@ class Renderer:
 		self.draw_markers()
 
 		if self.gui.draw_trace_button.active:
-			self.robot_trace.draw()
+			for trace in self.robot_traces:
+				trace.draw_line()
 
 		if self.gui.draw_reference_button.active:
 			self.draw_axis(0.5, 2, True)
 
 		curr_frame_time = time.time()
 		fps = 1 / (curr_frame_time - self.last_frame_time)
-		self.gui.draw(self.robot, fps, self.dt, self.time)
+		self.gui.draw(fps, self.dt, self.time)
 
 		self.last_frame_time = curr_frame_time
 
@@ -131,7 +131,8 @@ class Renderer:
 			self.time += self.dt
 			self.robot.update()
 
-		self.robot_trace.add_last(self.robot.tf[:3])
+		for i, trace in enumerate(self.robot_traces):
+			trace.add_last(self.robot.tfs[i, :3])
 		glutPostRedisplay()
 
 		glutTimerFunc(self.interframe_delay, self.update, 0)
@@ -185,7 +186,7 @@ class Renderer:
 		self.robot_texture_id = robot_mesh[4]
 		self.robot_vertex_count = len(vertex_data) // 8
 
-		self.robot_trace = Trace()
+		self.robot_traces = [Trace() for _ in range(len(robot.tfs))]
 
 	def run(self, robot):
 		glutInit()
@@ -223,11 +224,11 @@ class Renderer:
 		for tf in self.robot.tfs:
 			glPushMatrix()
 			glTranslatef(*tf[:3])
-			# glRotatef(tf[5] * RAD2DEG, 0, 0, 1)
-			# glRotatef(tf[4] * RAD2DEG, 0, 1, 0)
-			# glRotatef(tf[3] * RAD2DEG, 1, 0, 0)
+			glRotatef(tf[5] * RAD2DEG, 0, 0, 1)
+			glRotatef(tf[4] * RAD2DEG, 0, 1, 0)
+			glRotatef(tf[3] * RAD2DEG, 1, 0, 0)
 			self.draw_target_marker(color=color)
-			if self.bool_draw_axis and bool_draw_axis:
+			if self.gui.draw_reference_button.active and bool_draw_axis:
 				self.draw_axis(draw_on_top=False)
 			glPopMatrix()
 
@@ -274,7 +275,7 @@ class Renderer:
 		glRotatef(tf[4] * RAD2DEG, 0.0, 1.0, 0.0)
 		glRotatef(tf[3] * RAD2DEG, 1.0, 0.0, 0.0)
 		draw_vbo_textured(self.robot_vbo, self.robot_vertex_count, self.robot_texture_id)
-		if self.bool_draw_axis:
+		if self.gui.draw_reference_button.active:
 			self.draw_axis()
 		glPopMatrix()
 
@@ -299,8 +300,6 @@ class Renderer:
 	def keyboard(self, key, x, y):
 		if key == b' ':
 			self.running = not self.running
-		elif key in (b'c', b'C'):
-			self.bool_robot_view = not self.bool_robot_view
 		elif key in (b'f', b'F'):
 			self.bool_follow_robot = not self.bool_follow_robot
 		elif key in (b'k', b'K'):
@@ -352,10 +351,6 @@ class Renderer:
 
 		self.gui.draw_reference_button.handle_mouse(state)
 		self.gui.draw_trace_button.handle_mouse(state)
-		self.gui.draw_wps_button.handle_mouse(state)
-		self.gui.draw_robot_button.handle_mouse(state)
-		self.gui.draw_robot_force_button.handle_mouse(state)
-		self.gui.draw_thruster_force_button.handle_mouse(state)
 
 	def hover_button(self, x, y):
 		y = self.window_height - y  # Invert Y for UI coords
@@ -365,10 +360,6 @@ class Renderer:
 			return
 		self.gui.draw_reference_button.handle_mouse_motion(x, y)
 		self.gui.draw_trace_button.handle_mouse_motion(x, y)
-		self.gui.draw_wps_button.handle_mouse_motion(x, y)
-		self.gui.draw_robot_button.handle_mouse_motion(x, y)
-		self.gui.draw_robot_force_button.handle_mouse_motion(x, y)
-		self.gui.draw_thruster_force_button.handle_mouse_motion(x, y)
 
 	def zoom(self, wheel, direction, x, y):
 		self.camera_radius *= 0.9 if direction > 0 else 1.1

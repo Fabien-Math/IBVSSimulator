@@ -56,35 +56,8 @@ class GUI:
 		self.draw_trace_button.update_position(10, window_height - 260, 20, 20)
 		self.menu_button.update_position(10, window_height - 40, 90, 30)
 
-	def draw_robot_info(self, eta, nu, line_height=20):
-		"""Draws robot state info in aligned format: one column for position/orientation, one for velocity.
 
-		Args:
-			eta (list): 6D pose vector [x, y, z, roll, pitch, yaw].
-			nu (list): 6D velocity vector [vx, vy, vz, roll_vel, pitch_vel, yaw_vel].
-			line_height (int): Vertical spacing between rows.
-		"""
-
-		labels = ["x", "y", "z", "R", "P", "Y"]
-
-		# Set column positions
-		start_y = self.window_height - 60
-		left_col_x = 20
-		right_col_x = 120
-
-		for idx, label in enumerate(labels):
-			text_pos = f"{label}: {eta[idx]:.2f}"
-			text_vel = f"{nu[idx]:.2f}"
-			y = start_y - idx * line_height
-			self.draw_text(left_col_x, y, text_pos)
-			self.draw_text(right_col_x, y, text_vel)
-
-		y = start_y - 6 * line_height
-		speed = np.sqrt(nu[0]**2 + nu[1]**2 + nu[2]**2)
-		self.draw_text(left_col_x, y, f"speed: {speed:.2f} m/s")
-
-
-	def draw(self, robot, fps, playback_speed, time):
+	def draw(self, fps, playback_speed, time):
 		glDisable(GL_LIGHTING)
 		# Setup 2D orthographic projection
 		glMatrixMode(GL_PROJECTION)
@@ -98,7 +71,6 @@ class GUI:
 
 		if self.menu_button.active:
 			self.draw_rect(0, 0, self.menu_width, self.window_height, (0.1, 0.1, 0.1))
-			self.draw_robot_info(robot.eta, robot.nu)
 			self.draw_reference_button.draw()
 			self.draw_trace_button.draw()
 
